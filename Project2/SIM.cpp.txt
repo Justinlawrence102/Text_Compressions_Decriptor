@@ -1,0 +1,576 @@
+//Justin Lawrence
+/* On my honor, I have neither given nor received unauthorized aid on this assignment */
+
+#include <algorithm>
+#include <iostream>
+#include<fstream>
+#include<vector>
+using namespace std;
+
+class dictionaryModel{
+public:
+    string instr;
+    int count;
+    
+    dictionaryModel(string instr_, int count_) {
+        instr = instr_;
+        count = count_;
+    }
+    dictionaryModel() {
+        instr = "";
+        count = 0;
+    }
+};
+vector <string> instructions;
+string dictionary [8];
+int param = 2;
+
+int solutionOffset = 0;
+int solutionOffset2 = 0;
+
+int solutionDictionary = 0;
+string solutionBitMask = "";
+int numInstruction = 0;
+
+
+string inputString = "";
+void readFile() {
+    ifstream inFile;
+    if (param == 1){
+        inFile.open("original.txt");
+        if (!inFile) {
+             cerr << "Couldn't find file original.txt. Please make sure it is in the same dir as SIM.cpp\n";
+             exit(1);   // call system to stop
+         }
+        string line;
+        while (getline(inFile, line)) {
+            numInstruction ++;
+            instructions.push_back(line);
+        }
+    }
+    else if (param == 2){
+        inFile.open("compressed.txt");
+        if (!inFile) {
+             cerr << "Couldn't find file compressed.txt. Please make sure it is in the same dir as SIM.cpp\n";
+             exit(1);   // call system to stop
+         }
+        string line;
+        bool gettingDictValues = false;
+        int dictCnt = 0;
+        while (getline(inFile, line)) {
+            if (line == "xxxx"){
+                gettingDictValues = true;
+                dictCnt = 0;
+                continue;
+            }
+            if (gettingDictValues){
+                dictionary[dictCnt] = line;
+            }
+            else {
+                inputString += line;
+            }
+            dictCnt ++;
+        }
+    }
+    inFile.close();
+}
+void getDictonaryValues() {
+    vector <dictionaryModel> sortedValues;
+    for (int i = 0; i<instructions.size(); i++){
+        //add first item to list, otherwise see if it exists already first. if so, incremnet count
+        if (sortedValues.empty()) {
+            dictionaryModel newDirEntry(instructions[i], 1);
+            sortedValues.push_back(newDirEntry);
+        }
+        else {
+            bool foundItem = false;
+            for (int j = 0; j <sortedValues.size(); j++){
+                if (sortedValues[j].instr == instructions[i]) {
+                    sortedValues[j].count += 1;
+                    foundItem = true;
+                    break;
+                }
+            }
+            if (!foundItem) {
+                dictionaryModel newDirEntry(instructions[i], 1);
+                sortedValues.push_back(newDirEntry);
+            }
+        }
+    }
+    //sort by count
+    sort(sortedValues.begin(), sortedValues.end(), [](const dictionaryModel& r, const dictionaryModel& l) {
+        return l.count > r.count;
+     });
+    int tempj = 0;
+    for (int i = sortedValues.size()-1; i>=sortedValues.size()-8; i--){
+        dictionary[tempj] = sortedValues[i].instr;
+        tempj ++;
+    }
+}
+
+string intToBinary(int input, int numBits){
+    switch (input) {
+        case 0:
+            if (numBits == 2) { return "00"; }
+            else if (numBits == 3) {return "000";}
+            else if (numBits == 5) {return "00000";}
+            else {return "0000";}
+            break;
+        case 1:
+            if (numBits == 2) { return "01"; }
+            else if (numBits == 3) {return "001";}
+           else if (numBits == 5) {return "00001";}
+            else {return "0001";}
+            break;
+        case 2:
+            if (numBits == 2) { return "10"; }
+            else if (numBits == 3) {return "010";}
+            else if (numBits == 5) {return "00010";}
+            else {return "0010";}
+            break;
+        case 3:
+            if (numBits == 2) { return "11"; }
+            else if (numBits == 3) {return "011";}
+            else if (numBits == 5) {return "00011";}
+            else {return "0011";}
+            break;
+        case 4:
+            if (numBits == 3) { return "100"; }
+            else if (numBits == 5) {return "00100";}
+            else {return "0100";}
+            break;
+        case 5:
+            if (numBits == 3) { return "101"; }
+            else if (numBits == 5) {return "00101";}
+            else {return "0101";}
+            break;
+        case 6:
+            if (numBits == 3) { return "110"; }
+            else if (numBits == 5) {return "00110";}
+            else {return "0110";}
+            break;
+        case 7:
+            if (numBits == 3) { return "111"; }
+            else if (numBits == 5) {return "00111";}
+            else {return "0111";}
+            break;
+        case 8:
+            if (numBits == 5) {return "01000";}
+            else {return "1000";}
+        case 9: return "01001";
+        case 10: return "01010";
+        case 11: return "01011";
+        case 12: return "01100";
+        case 13: return "01101";
+        case 14: return "01110";
+        case 15: return "01111";
+        case 16: return "10000";
+        case 17: return "10001";
+        case 18: return "10010";
+        case 19: return "10011";
+        case 20: return "10100";
+        case 21: return "10101";
+        case 22: return "10110";
+        case 23: return "10111";
+        case 24: return "11000";
+        case 25: return "11001";
+        case 26: return "11010";
+        case 27: return "11011";
+        case 28: return "11100";
+        case 29: return "11101";
+        case 30: return "11110";
+        case 31: return "10111";
+        case 32: return "11111";
+        default:
+            return "";
+            break;
+    }
+}
+bool twoBitConsMismatch(string instruction) {
+    //go through each of the dictionary indexes to see if there are any 2 bit mismatches
+    for (int i = 0; i < 8; i++) {
+        int offset = 0;
+        
+        bool foundSolution = false;
+        bool prevWasMismatch = false;
+       // cout << "dict: " + intToBinary(i, 3) + "\n";
+        for (int j = 0; j < 31; j++) {
+            string dicCompar = dictionary[i].substr(j, 1);
+            string instrCompar = instruction.substr(j, 1);
+           // cout << dicCompar + " " + instrCompar + "\n";
+            if ((prevWasMismatch) && (dicCompar != instrCompar)){ //this is only true if the immedinetly previous value was mismatch and this vlaue is also a mismatch
+                foundSolution = true;
+                prevWasMismatch = false;
+                continue;
+            }
+            if ((prevWasMismatch) && (dicCompar == instrCompar)) {
+                prevWasMismatch = false;
+                foundSolution = false;
+             //   cout << "no good\n";
+                break;
+            }
+            if (dicCompar != instrCompar){
+                prevWasMismatch = true;
+              //  cout << "found mismatch!\n";
+                offset = j;
+                if (foundSolution) { //if it gets to here that means that its already found a solution, but there was another mismatch later on...
+                    foundSolution = false;
+                    break;
+                }
+                continue;
+            }
+        }
+        if (foundSolution) {
+            solutionOffset = offset;
+            solutionDictionary = i;
+        //    cout << "011 " + intToBinary(solutionOffset, 5) + " " + intToBinary(solutionDictionary, 3);
+            return true;
+        }
+    }
+    return false;
+}
+bool twoBitMismatchAnywhere(string instruction) {
+    //go through each of the dictionary indexes to see if there are any 2 bit mismatches
+    for (int i = 0; i < 8; i++) {
+        bool foundSolution = false;
+        int numMismatch = 0;
+        int misMatchIndex1 = 0;
+        int misMatchIndex2 = 0;
+        for (int j = 0; j < 31; j++) {
+            string dicCompar = dictionary[i].substr(j, 1);
+            string instrCompar = instruction.substr(j, 1);
+            if (dicCompar != instrCompar){ //mismatch!
+                if (numMismatch == 0) {
+                    numMismatch ++;
+                    misMatchIndex1 = j;
+                }
+                else if (numMismatch == 1) {
+                    numMismatch ++;
+                    foundSolution = true;
+                    misMatchIndex2 = j;
+                }
+                else {
+                    foundSolution = false;
+                    break;
+                }
+            }
+        }
+        if (foundSolution) {
+            solutionOffset = misMatchIndex1;
+            solutionOffset2 = misMatchIndex2;
+            solutionDictionary = i;
+       //     cout << "100 " + intToBinary(solutionOffset, 5) + " " + intToBinary(solutionOffset2, 5) + " " + intToBinary(i, 3);
+            return true;
+        }
+    }
+    return false;
+}
+bool oneBitMismatch(string instruction) {
+    //go through each of the dictionary indexes to see if there are any 2 bit mismatches
+    for (int i = 0; i < 8; i++) {
+        bool foundSolution = false;
+        int offset = 0;
+        for (int j = 0; j < 32; j++) {
+            string dicCompar = dictionary[i].substr(j, 1);
+            string instrCompar = instruction.substr(j, 1);
+            //see if both binary values are different
+            if (dicCompar != instrCompar) {
+                if (!foundSolution) { //if it has not already found a solution for this dic value, goo!
+                    foundSolution = true;
+                    offset = j;
+                }
+                else { //otherwise it doesnt exist for just 2 consecutive bits...try next dictonary value
+                    foundSolution = false;
+                   // cout << "should fail here!";
+                    break;
+                }
+            }
+        }
+        if (foundSolution) {
+            solutionOffset = offset;
+            solutionDictionary = i;
+            return true;
+        }
+    }
+    return false;
+}
+bool fourBitMask(string instruction) {
+    //go through each of the dictionary indexes to see if there are any 2 bit mismatches
+    for (int i = 0; i < 8; i++) {
+        bool foundSolution = false;
+        int index = 0;
+        string bitMask = "";
+        
+        for (int j = 0; j < 31; j++) {
+            string dicCompar = dictionary[i].substr(j, 1);
+            string instrCompar = instruction.substr(j, 1);
+            if ((dicCompar != instrCompar) && (!foundSolution)){ //mismatch!
+                //get the next 4 bits to be the bitmask!
+                index = j;
+                for (int k = 0; k < 4; k++){
+                    string instrCompar = instruction.substr(j, 1);
+                    string dicCompar = dictionary[i].substr(j, 1);
+                    if (dicCompar != instrCompar) {
+                        bitMask += "1";
+                    }
+                    else {
+                        bitMask += "0";
+                    }
+                    j++;
+                }
+                foundSolution = true;
+            }
+            else  if ((dicCompar != instrCompar) && (foundSolution)){ //mismatch!, but already found a solution...no good!
+                foundSolution = false;
+                break;
+            }
+        }
+        if (foundSolution) {
+            solutionDictionary = i;
+            solutionOffset = index;
+            solutionBitMask = bitMask;
+//            cout << "001 " + intToBinary(index, 5) + " " + bitMask + " " + intToBinary(solutionDictionary, 3) + "\n";
+            return true;
+        }
+    }
+    return false;
+}
+int main(int argc, char * argv[]) {
+    if (argc != 1) {
+        param = atoi(argv[1]);
+    }
+    readFile();
+    
+    vector <string> compressedString;
+
+    int lineNum = 0;
+    string prevInstruction = "101010";
+    int concecutiveRepatingNum = -1;
+//    string instrCompar = dictionary[1].substr(30, 2);
+//    bool test = oneBitMismatch("11011111111111111111111111101111"); //11100001111111111111111111110111
+//    cout << test;
+
+    //compression!:
+    if (param == 1){
+        getDictonaryValues();
+        //*
+         while(lineNum < numInstruction) {
+             //RLE
+             if (instructions[lineNum] == prevInstruction) {
+                 concecutiveRepatingNum ++;
+                 prevInstruction = instructions[lineNum];
+                 lineNum ++;
+                 continue;
+             }
+             else if ((concecutiveRepatingNum != -1) && (instructions[lineNum] != prevInstruction)) {
+                 //apply RLE here!
+                 compressedString.push_back("000"+intToBinary(concecutiveRepatingNum, 2));
+                 prevInstruction = "";
+                 concecutiveRepatingNum = -1;
+             }
+
+             string *tempIndex = find(begin(dictionary), end(dictionary), instructions[lineNum]); //used for direct mapping
+             //Direct Matching
+             if (tempIndex != end(dictionary)) {
+                 compressedString.push_back("101"+intToBinary(distance(dictionary, tempIndex), 3));
+             }
+             //1 bit mismatch
+             else if (oneBitMismatch(instructions[lineNum])) {
+                 compressedString.push_back("010" + intToBinary(solutionOffset, 5) + "" + intToBinary(solutionDictionary, 3));
+             }
+             //2 bit consecutive mismatch
+             else if (twoBitConsMismatch(instructions[lineNum])) {
+                  compressedString.push_back("011" + intToBinary(solutionOffset, 5) + "" + intToBinary(solutionDictionary, 3));
+             }
+             else if (fourBitMask(instructions[lineNum])){
+                 compressedString.push_back("001" + intToBinary(solutionOffset, 5) + "" + solutionBitMask + "" + intToBinary(solutionDictionary, 3) + "");
+             }
+             //2 bit anywhere mismatch
+             else if (twoBitMismatchAnywhere(instructions[lineNum])){
+                 compressedString.push_back("100" + intToBinary(solutionOffset, 5) + "" + intToBinary(solutionOffset2, 5) + "" + intToBinary(solutionDictionary, 3));
+             }
+             //Original Binaries
+             else {
+                 compressedString.push_back("110"+instructions[lineNum]);
+             }
+             //cout<<"hello!";
+             prevInstruction = instructions[lineNum];
+             lineNum ++;
+         }
+
+         string printString = "";
+         int bitCounter  = 0;
+         for (int i = 0; i < compressedString.size(); i++){
+             for (int j = 0; j < compressedString[i].size(); j ++){
+                 string bit = compressedString[i].substr(j, 1);
+                 printString += bit;
+                 bitCounter ++;
+                 if (bitCounter == 32 ) {
+                     printString += "\n";
+                     bitCounter = 0;
+                 }
+             }
+             //cout << compressedString[i] + "\n";
+         }
+         while (bitCounter != 32){
+             bitCounter ++;
+             printString += "1";
+         }
+         printString += "\nxxxx\n";
+         for (int i = 0; i < 8; i++){
+             printString += dictionary[i] + "\n";
+         }
+         printString.pop_back(); //removes new line at the end
+         ofstream out("cout.txt");
+         out << printString;
+         out.close();
+        // */
+    }
+    
+    
+    else if (param == 2){
+
+        int bitCounter = 0;
+        
+        while(bitCounter < inputString.size()){
+            //decoding....
+            string formatBytes = inputString.substr(bitCounter, 3);
+            bitCounter = bitCounter + 3;
+            if (formatBytes == "000"){
+                int runIndex = stoi(inputString.substr(bitCounter, 2), 0, 2);
+                bitCounter = bitCounter + 2;
+                string prevInstr = instructions.back();
+                for (int i = 0; i < runIndex + 1; i++) {
+                    instructions.push_back(prevInstr);
+                }
+            }
+            else if (formatBytes == "001"){
+                // bitmask
+                int startIndex = stoi(inputString.substr(bitCounter, 5), 0, 2);
+                bitCounter = bitCounter + 5;
+                string bitMask = inputString.substr(bitCounter, 4);
+                bitCounter = bitCounter + 4;
+                int dictIndex = stoi(inputString.substr(bitCounter, 3), 0, 2);
+                bitCounter = bitCounter + 3;
+                string dictValue = dictionary[dictIndex];
+                string finalString = "";
+                int bitMaskCnt = 0;
+                for (int i = 0; i<dictValue.size(); i++){
+                    //fixing mismatch...
+                    if ((i >= startIndex) && (i < (startIndex + 4))) {
+                        string testingValue = bitMask.substr(bitMaskCnt, 1);
+                        if (testingValue == "0") {
+                            finalString += dictValue.substr(i, 1);
+                        }
+                        else {
+                            if (dictValue.substr(i, 1) == "0") {finalString += "1";}
+                            else {finalString += "0";}
+                        }
+                        bitMaskCnt ++;
+                    }
+                    //therewise using original bit from table.
+                    else {
+                        finalString += dictValue.substr(i, 1);
+                    }
+                }
+                instructions.push_back(finalString);
+            }
+            else if (formatBytes == "010"){
+                //1 bit Mismatch
+                int misMatchIndex = stoi(inputString.substr(bitCounter, 5), 0, 2);
+                bitCounter = bitCounter + 5;
+                int dictIndex = stoi(inputString.substr(bitCounter, 3), 0, 2);
+                bitCounter = bitCounter + 3;
+                string dictValue = dictionary[dictIndex];
+                string finalString = "";
+                for (int i = 0; i<dictValue.size(); i++){
+                    //fixing mismatch...
+                    if (i == misMatchIndex) {
+                        if (dictValue.substr(i, 1) == "0") {finalString += "1";}
+                        else {finalString += "0";}
+                    }
+                    //therewise using original bit from table.
+                    else {
+                        finalString += dictValue.substr(i, 1);
+                    }
+                }
+                instructions.push_back(finalString);
+            }
+            else if (formatBytes == "011"){
+                // 2 bit consecutive mismatches
+                int startingIndex = stoi(inputString.substr(bitCounter, 5), 0, 2);
+                bitCounter = bitCounter + 5;
+                int dictIndex = stoi(inputString.substr(bitCounter, 3), 0, 2);
+                bitCounter = bitCounter + 3;
+                string dictValue = dictionary[dictIndex];
+                string finalString = "";
+                for (int i = 0; i<dictValue.size(); i++){
+                    //fixing mismatch...
+                    if ((i == startingIndex) || (i == startingIndex + 1 )){
+                        if (dictValue.substr(i, 1) == "0") {finalString += "1";}
+                        else {finalString += "0";}
+                    }
+
+                    //therewise using original bit from table.
+                    else {
+                        finalString += dictValue.substr(i, 1);
+                    }
+                }
+                instructions.push_back(finalString);
+               // cout << instructions[1];
+            }
+            else if (formatBytes == "100"){
+                //2 bit mismatches anywhere
+                int mm1Index = stoi(inputString.substr(bitCounter, 5), 0, 2);
+                bitCounter = bitCounter + 5;
+                int mm2Index = stoi(inputString.substr(bitCounter, 5), 0, 2);
+                bitCounter = bitCounter + 5;
+                int dictIndex = stoi(inputString.substr(bitCounter, 3), 0, 2);
+                bitCounter = bitCounter + 3;
+                string dictValue = dictionary[dictIndex];
+                string finalString = "";
+                for (int i = 0; i<dictValue.size(); i++){
+                    //fixing mismatch...
+                    if ((i == mm1Index) || (i == mm2Index)) {
+                        if (dictValue.substr(i, 1) == "0") {finalString += "1";}
+                        else {finalString += "0";}
+                    }
+                    //therewise using original bit from table.
+                    else {
+                        finalString += dictValue.substr(i, 1);
+                    }
+                }
+                instructions.push_back(finalString);
+            }
+            else if (formatBytes == "101"){
+                //direct matching
+                string dictIndex = inputString.substr(bitCounter, 3);
+                int index = stoi(dictIndex, 0, 2);
+                instructions.push_back(dictionary[index]);
+                bitCounter = bitCounter + 3;
+            }
+            else if (formatBytes == "110"){
+                //Original Binaries
+                string originalVal = inputString.substr(bitCounter, 32);
+                instructions.push_back(originalVal);
+                bitCounter = bitCounter + 32;
+            }
+            else {
+              //  cout << "ERROR or at end of string!";
+                break;
+            }
+        }
+        string printString = "";
+        for (int i = 0; i<instructions.size(); i++){
+            printString += instructions[i]+"\n";
+        }
+        printString.pop_back(); //removes new line at the end
+        ofstream out("dout.txt");
+        out << printString;
+        out.close();
+    }
+    else {
+        cout << argv[1];
+    }
+    return 0;
+}
